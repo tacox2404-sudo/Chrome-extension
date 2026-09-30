@@ -29,6 +29,14 @@
       <p id="quest-msg" aria-live="polite"></p>
     </section>
 
+    <section id="sidequests" aria-label="Side quests">
+      <div class="sq-head"><span>Side quests</span><span id="sq-count"></span><button id="sq-clear" class="ghost" hidden>Clear finished</button></div>
+      <ul id="task-list"></ul>
+      <form id="task-form" autocomplete="off">
+        <input id="task-input" type="text" maxlength="80" placeholder="+ Add a side quest and hit enter">
+      </form>
+    </section>
+
     <p id="wisdom"></p>
   </main>
 
@@ -41,9 +49,8 @@
 
   <nav id="dock" aria-label="Tools">
     <button data-open="focus" id="dock-focus">🎯 <span>Lock In</span></button>
-    <button data-open="quests">📝 <span>Side Quests</span></button>
     <button data-open="games">🎮 <span>Break Room</span></button>
-    <button data-open="vibes">🎧 <span>Vibes</span></button>
+    <button data-open="vibes" id="dock-vibes">🎧 <span>Vibes</span></button>
     <button data-open="settings">⚙️ <span>Settings</span></button>
   </nav>
 
@@ -79,17 +86,6 @@
           <button id="focus-cancel" class="ghost" hidden>Bail out</button>
         </div>
         <p id="focus-msg" aria-live="polite"></p>
-      </section>
-
-      <section data-panel="quests" hidden>
-        <h2>Side Quests</h2>
-        <p class="sub">Small stuff. Each one you finish is +10 aura.</p>
-        <form id="task-form" class="row" autocomplete="off">
-          <input id="task-input" type="text" maxlength="80" placeholder="Add a side quest...">
-          <button class="big" type="submit">Add</button>
-        </form>
-        <ul id="task-list"></ul>
-        <p id="task-empty" class="sub">No side quests. Suspiciously free. Add one.</p>
       </section>
 
       <section data-panel="games" hidden>
@@ -136,12 +132,15 @@
         <h2>Vibes</h2>
         <p class="sub">Made live in your browser. No downloads, no ads, no cap.</p>
         <div class="row tabs" id="vibe-choices">
-          <button data-vibe="lofi" class="chip">🎹 Lo-fi chill</button>
-          <button data-vibe="rain" class="chip">🌧️ Rain</button>
-          <button data-vibe="brown" class="chip">🌊 Brown noise</button>
+          <button data-vibe="lofi" class="chip">🎹 Lo-fi beat</button>
+          <button data-vibe="dreamy" class="chip">☁️ Dreamy pads</button>
+          <button data-vibe="rain" class="chip">🌧️ Rain and thunder</button>
+          <button data-vibe="ocean" class="chip">🌊 Ocean</button>
+          <button data-vibe="fire" class="chip">🔥 Fireplace</button>
+          <button data-vibe="brown" class="chip">🟤 Brown noise</button>
           <button data-vibe="off" class="chip on">🔇 Off</button>
         </div>
-        <label class="row">Volume <input id="vibe-vol" type="range" min="0" max="100" value="40"></label>
+        <label class="row">Volume <input id="vibe-vol" type="range" min="0" max="100" value="50"></label>
       </section>
 
       <section data-panel="settings" hidden>

@@ -37,8 +37,8 @@ body {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 0 5vw 6vh;
 }
-#clock { font-size: clamp(4.5rem, 16vw, 11rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; text-shadow: 0 6px 40px rgba(0, 0, 0, 0.35); }
-#greeting { font-size: clamp(1.4rem, 3.4vw, 2.4rem); font-weight: 700; margin: 0.4em 0 1.2em; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35); }
+#clock { font-size: clamp(4rem, min(14vw, 20vh), 9.5rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1; text-shadow: 0 6px 40px rgba(0, 0, 0, 0.35); }
+#greeting { font-size: clamp(1.3rem, 3vw, 2.2rem); font-weight: 700; margin: 0.4em 0 0.9em; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35); }
 
 #quest { width: min(560px, 92vw); }
 #quest-label { display: block; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.18em; opacity: 0.8; margin-bottom: 0.6em; }
@@ -52,7 +52,21 @@ body {
 #quest-view input[type="checkbox"] { width: 1.4em; height: 1.4em; accent-color: #a7ff83; cursor: pointer; }
 #quest-view.done #quest-text { text-decoration: line-through; opacity: 0.6; }
 #quest-msg { min-height: 1.4em; margin: 0.6em 0 0; font-weight: 600; color: #d6ffb8; }
-#wisdom { position: absolute; bottom: 14vh; max-width: 640px; opacity: 0.85; font-size: 1rem; margin: 0; padding: 0 5vw; }
+#wisdom { position: absolute; bottom: 12vh; max-width: 640px; opacity: 0.85; font-size: 1rem; margin: 0; padding: 0 5vw; }
+
+/* Side quests on the main page */
+#sidequests { width: min(460px, 92vw); margin-top: 1.4rem; text-align: left; background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(10px); border-radius: 18px; padding: 10px 14px 8px; }
+.sq-head { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.16em; opacity: 0.85; margin-bottom: 4px; }
+.sq-head .ghost { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 0.75rem; }
+#sidequests ul { list-style: none; margin: 0; padding: 0; max-height: 26vh; overflow: auto; }
+#sidequests li { display: flex; align-items: center; gap: 10px; padding: 6px 2px; font-size: 1rem; }
+#sidequests li.done span { text-decoration: line-through; opacity: 0.5; }
+#sidequests li span { flex: 1; word-break: break-word; }
+#sidequests li input { accent-color: #a7ff83; width: 1.15em; height: 1.15em; cursor: pointer; }
+#sidequests li .ghost { opacity: 0; }
+#sidequests li:hover .ghost, #sidequests li .ghost:focus-visible { opacity: 0.8; }
+#task-form input { width: 100%; background: transparent; border: 0; border-top: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 0.95rem; padding: 0.55em 2px 0.3em; outline: none; }
+#task-form input::placeholder { color: rgba(255, 255, 255, 0.55); }
 
 /* Buttons */
 button { font: inherit; color: inherit; cursor: pointer; }
@@ -107,11 +121,6 @@ kbd { background: var(--glass); border: 1px solid var(--line); border-radius: 6p
 #focus-msg, #set-msg, #ball-answer { min-height: 1.4em; font-weight: 600; color: #d6ffb8; }
 #focus-start, #focus-cancel { margin-inline: auto; }
 
-#task-list { list-style: none; padding: 0; margin: 0; }
-#task-list li { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); }
-#task-list li.done span { text-decoration: line-through; opacity: 0.5; }
-#task-list span { flex: 1; word-break: break-word; }
-#task-list input { accent-color: #a7ff83; width: 1.2em; height: 1.2em; }
 
 .game { text-align: center; }
 #snake { max-width: 100%; background: #12081f; border: 2px solid var(--line); border-radius: 12px; }
@@ -140,6 +149,7 @@ kbd { background: var(--glass); border: 1px solid var(--line); border-radius: 6p
 .confetti { position: fixed; z-index: 60; font-size: 1.8rem; pointer-events: none; animation: pop 1.6s ease-out forwards; }
 @keyframes pop { 0% { transform: translate(0, 0) scale(0.4); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--r)) scale(1.1); opacity: 0; } }
 
+@media (max-height: 860px) { #wisdom { display: none; } }
 @media (max-width: 900px) {
   #meme { display: none; }
   #dock button span { display: none; }

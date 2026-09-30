@@ -29,10 +29,10 @@ Ideas we considered, with the call we made.
 | Clock, greeting, main focus (Momentum basics) | In | Table stakes. Kept simple. |
 | Slang greetings by time of day | In | Cheap, funny, gives the whole product its voice. |
 | Lock-in (Pomodoro) timer with notifications | In | The core purpose. Works even if the tab is closed. |
-| Side quests (to-do list) | In | Momentum has it, students expect it. |
+| Side quests (to-do list) | In | Momentum has it, students expect it. Lives on the main page, one click from the clock. |
 | Aura points, ranks, daily streak | In | Gives a reason to come back without guilt tripping. |
 | Break Room: Snek, Reflex test, Vibe Ball, Grass Quest | In | Games that take under 5 minutes. Each is small enough to build and test. |
-| Generated sounds (lo-fi, rain, brown noise) | In | No audio files, no copyright problem, no downloads, works offline. |
+| Generated sounds (lo-fi beat, dreamy pads, rain and thunder, ocean, fireplace, brown noise) | In | No audio files, no copyright problem, no downloads, works offline. |
 | Meme card (two-liner captions plus emoji) | In | Relatable humor, no image licensing. Rotates on click. |
 | Gregory the frog (mascot with opinions) | In | Gives the extension a personality people remember. |
 | Boss key (press B for a fake document) | In | Student humor, and very cheap to build. |
@@ -62,11 +62,11 @@ Priority: **P0** must ship, **P1** should ship.
 | F2 | Clock and greeting | I see the time and a slang greeting that matches the time of day and uses my name. | P0 |
 | F3 | Onboarding | The first time, it asks what to call me and remembers it. | P0 |
 | F4 | Main quest | I set one main goal per day, tick it off and get rewarded. It resets the next day. | P0 |
-| F5 | Side quests | I keep a small to-do list that survives closing the browser. | P0 |
+| F5 | Side quests | I see my to-do list right under the main quest, add to it without opening anything, and it survives closing the browser. | P0 |
 | F6 | Lock-in timer | I run a 15, 25 or 45 minute focus timer and get a notification when it ends, even if I closed the tab. | P0 |
 | F7 | Aura, rank, streak | I earn points for finishing things, see my rank and a daily streak. | P1 |
 | F8 | Break Room | I can play Snek, test my reflexes, ask the Vibe Ball, or get a real-world Grass Quest. | P1 |
-| F9 | Vibes | I can play lo-fi, rain or brown noise and set the volume. | P1 |
+| F9 | Vibes | I can play a lo-fi beat, dreamy pads, rain, ocean, fireplace or brown noise and set the volume. | P1 |
 | F10 | Memes and wisdom | I see a rotating meme and a one-line pep talk. | P1 |
 | F11 | Gregory | I can poke a frog mascot for a funny line. | P1 |
 | F12 | Scenes | The background changes with the time of day and I can cycle it. | P1 |
@@ -99,10 +99,10 @@ The build is done when every P0 row passes. `npm run check` covers the static on
 | AC-02 | The page shows the current time and a greeting containing the user's name. Greeting text matches the time-of-day group. | Look at the page at different hours. | e2e |
 | AC-03 | On first run a name prompt appears. The name is saved and still shown after a reload. | Reload the page. | e2e |
 | AC-04 | Main quest can be set, ticked (+30 aura) and survives reload. A quest from a previous day is not shown. | Set it, tick it, reload. | e2e |
-| AC-05 | Side quests can be added, ticked (+10 aura), deleted, and survive reload. | Use the list. | e2e |
+| AC-05 | Side quests are visible on the main page. They can be added with Enter, ticked (+10 aura, finished ones sink to the bottom), deleted, cleared in one click, and survive reload. | Use the list. | e2e |
 | AC-06 | The lock-in timer starts, counts down, and can be cancelled without aura. If the session ends while the tab is closed, the aura is paid on the next open. | Start, cancel, and simulate an expired session. | e2e |
 | AC-07 | All four Break Room activities work. Snek runs and ends on a crash. Reflex punishes early taps and reports milliseconds. Vibe Ball answers. Grass Quest gives +5 once per quest. | Play each one. | e2e |
-| AC-08 | Lo-fi, rain and brown noise each start and stop without errors, and the volume slider works. | Click each vibe. | e2e (no errors) |
+| AC-08 | All six vibes start and stop without errors. Each one, rendered offline for 24 s, has no bad samples, does not clip, and sits between -45 and -12 dBFS RMS. The volume slider works. | Click each vibe. | e2e (levels) |
 | AC-09 | Rank, aura and streak update immediately and persist. Streak increases only once per day. | Do an action on two days. | e2e (day 1) |
 | AC-10 | Pressing B (outside a text field) toggles the fake document. Escape also closes it. | Press B. | e2e |
 | AC-11 | A focus alarm is scheduled with the browser when a lock-in starts and cleared on cancel. An hourly hydration alarm exists unless disabled. | Inspect alarms. | e2e |
@@ -113,7 +113,7 @@ The build is done when every P0 row passes. `npm run check` covers the static on
 
 Manual checks the scripts cannot do (do these before showing it to the professor):
 - Notification actually pops up when a real 15 minute timer ends (system notification settings must allow Chrome).
-- Sound is pleasant on real speakers and the volume feels sane at default.
+- Sound is pleasant on real speakers and headphones, and the volume feels sane at default. The e2e test proves the levels are safe, not that the music sounds good. Listen to lofi, dreamy and rain.
 - Read all copy once out loud. If it sounds forced, fix it in `slang.js`.
 
 ## 6. Out of scope for v1

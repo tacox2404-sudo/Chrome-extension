@@ -16,11 +16,10 @@ Full product doc and acceptance criteria: [docs/PM-DOC.md](docs/PM-DOC.md)
 
 | Feature | Where to find it |
 |---|---|
-| Time, greeting, main quest | Center of the page |
+| Time, greeting, main quest, side quests | Center of the page |
 | Lock In timer (15, 25, 45 min) | Dock, bottom |
-| Side Quests to-do list | Dock |
 | Break Room: Snek, Reflex, Vibe Ball, Grass Quest | Dock |
-| Vibes: lo-fi, rain, brown noise | Dock |
+| Vibes: lo-fi beat, dreamy pads, rain, ocean, fireplace, brown noise | Dock |
 | Aura, rank, streak | Top left |
 | Meme card | Top right |
 | Gregory | Bottom right, poke him |

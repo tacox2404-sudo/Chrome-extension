@@ -50,13 +50,16 @@ ok((await page.textContent("#aura-pts")) === "30", "AC-04 main quest gives 30 au
 ok((await page.textContent("#streak")) === "1", "AC-09 streak starts at 1");
 
 // AC-05 side quests
-await page.click('[data-open="quests"]');
-await page.fill("#task-input", "Email the professor");
-await page.press("#task-input", "Enter");
-await page.check("#task-list input");
+ok(await page.isVisible("#task-input"), "AC-05 side quests are on the main page, no panel to open");
+for (const t of ["Email the professor", "Read chapter 4", "Reply to group chat", "Book library room"]) {
+  await page.fill("#task-input", t);
+  await page.press("#task-input", "Enter");
+}
+ok((await page.locator("#task-list li").count()) === 4, "AC-05 four side quests listed");
+await page.locator("#task-list input").first().click(); // click, not check: the list re-sorts after ticking
 ok((await page.textContent("#aura-pts")) === "40", "AC-05 side quest gives 10 aura");
-await page.screenshot({ path: join(shots, "side-quests.png") });
-await page.click("#panel-close");
+ok((await page.locator("#task-list li.done").count()) === 1 && (await page.locator("#task-list li:last-child").getAttribute("class")) === "done", "AC-05 finished quest sinks to the bottom");
+await page.screenshot({ path: join(shots, "home-with-side-quests.png") });
 
 // AC-06 focus timer
 await page.click('[data-open="focus"]');
@@ -102,11 +105,39 @@ await page.click("#panel-close");
 
 // AC-08 vibes
 await page.click('[data-open="vibes"]');
-for (const v of ["lofi", "rain", "brown", "off"]) await page.click(`[data-vibe="${v}"]`);
+for (const v of ["lofi", "dreamy", "rain", "ocean", "fire", "brown", "off"]) await page.click(`[data-vibe="${v}"]`);
 await page.click('[data-vibe="lofi"]');
 await page.screenshot({ path: join(shots, "vibes.png") });
 await page.click('[data-vibe="off"]');
 ok(true, "AC-08 all vibes start and stop");
+
+// AC-08 sound quality: render 24 s of each vibe offline and measure it.
+const levels = await page.evaluate(async () => {
+  const { VIBES, buildMaster } = await import("./js/audio.js");
+  const out = {};
+  for (const name of Object.keys(VIBES)) {
+    const secs = 24, rate = 44100;
+    const c = new OfflineAudioContext(2, secs * rate, rate);
+    const m = buildMaster(c, 0.5);
+    VIBES[name](c, m.input).tick(secs);
+    const buf = await c.startRendering();
+    let peak = 0, sum = 0, bad = 0, n = 0;
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < d.length; i++) {
+        const v = d[i];
+        if (!Number.isFinite(v)) bad++;
+        peak = Math.max(peak, Math.abs(v)); sum += v * v; n++;
+      }
+    }
+    out[name] = { peak, rmsDb: 20 * Math.log10(Math.sqrt(sum / n) + 1e-9), bad };
+  }
+  return out;
+});
+for (const [name, l] of Object.entries(levels)) {
+  console.log(`      ${name.padEnd(7)} peak ${l.peak.toFixed(2)}  rms ${l.rmsDb.toFixed(1)} dBFS`);
+  ok(l.bad === 0 && l.peak < 1 && l.rmsDb > -45 && l.rmsDb < -12, `AC-08 ${name} is audible, not clipping, no bad samples`);
+}
 await page.click("#panel-close");
 
 // AC-10 boss key

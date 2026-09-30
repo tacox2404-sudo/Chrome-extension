@@ -176,7 +176,6 @@ function open(name) {
   $("overlay").hidden = false;
   document.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== name; });
   if (name === "focus") renderFocus();
-  if (name === "quests") renderTasks();
   if (name === "settings") renderSettings();
   if (name === "games") selectGame(currentGame);
 }
@@ -248,11 +247,13 @@ $("focus-cancel").addEventListener("click", () => {
   renderFocus();
 });
 
-/* ---------- Side quests ---------- */
+/* ---------- Side quests (live on the main page) ---------- */
 function renderTasks() {
   const list = $("task-list");
   list.replaceChildren();
-  state.tasks.forEach((t, i) => {
+  // Open ones first, finished ones sink to the bottom.
+  const order = state.tasks.map((t, i) => ({ t, i })).sort((a, b) => a.t.done - b.t.done);
+  order.forEach(({ t, i }) => {
     const li = document.createElement("li");
     li.className = t.done ? "done" : "";
     const cb = document.createElement("input");
@@ -275,7 +276,10 @@ function renderTasks() {
     li.append(cb, span, del);
     list.append(li);
   });
-  $("task-empty").hidden = state.tasks.length > 0;
+  const left = state.tasks.filter((t) => !t.done).length;
+  $("sq-count").textContent = state.tasks.length ? `${left} left` : "";
+  $("sq-clear").hidden = !state.tasks.some((t) => t.done);
+  $("task-input").placeholder = state.tasks.length ? "+ Add another side quest" : "+ Add a side quest and hit enter";
 }
 $("task-form").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -286,6 +290,7 @@ $("task-form").addEventListener("submit", (e) => {
   save();
   renderTasks();
 });
+$("sq-clear").addEventListener("click", () => { state.tasks = state.tasks.filter((t) => !t.done); save(); renderTasks(); });
 
 /* ---------- Games ---------- */
 let currentGame = "snake";
@@ -344,6 +349,7 @@ $("vibe-choices").addEventListener("click", (e) => {
   const b = e.target.closest("[data-vibe]");
   if (!b) return;
   setVibe(b.dataset.vibe);
+  $("dock-vibes").classList.toggle("live", b.dataset.vibe !== "off");
   document.querySelectorAll("#vibe-choices .chip").forEach((c) => c.classList.toggle("on", c === b));
 });
 $("vibe-vol").addEventListener("input", (e) => setVolume(e.target.value / 100));
@@ -428,6 +434,7 @@ $("name-form").addEventListener("submit", (e) => {
   setInterval(renderClock, 1000);
   renderGreeting();
   renderQuest();
+  renderTasks();
   renderAura();
   nextMeme();
   $("wisdom").textContent = pick(WISDOM);
