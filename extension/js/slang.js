@@ -162,13 +162,3 @@ export const SCENES = [
   { name: "Midnight city", c1: "#3a86ff", c2: "#3a0ca3", c3: "#080b1e" },
   { name: "Lava lamp", c1: "#ff9e00", c2: "#ff3d54", c3: "#3d0b2b" },
 ];
-
-export const FAKE_DOC_TITLE = "Q3 Synergy Alignment Report.docx";
-export const FAKE_DOC_LINES = [
-  "Executive Summary",
-  "In order to leverage cross-functional synergies, stakeholders should circle back on the key deliverables and align on next steps going forward.",
-  "1.1 Strategic Overview",
-  "Moving the needle on scalable outcomes requires a holistic paradigm shift in our value-add proposition.",
-  "1.2 Action Items",
-  "Touch base offline. Ping the team. Take this conversation to the next level.",
-];

@@ -420,7 +420,296 @@ function brown(ctx, out) {
   return { tick() {}, end: s.end };
 }
 
-export const VIBES = { lofi, dreamy, rain, ocean, fire, brown };
+/* ---------------- Hip hop: shared drum kit and 808 ---------------- */
+function drumKit(ctx, dest) {
+  const kick = (t, vel = 1, len = 0.42) => {
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(155, t);
+    o.frequency.exponentialRampToValueAtTime(46, t + 0.09);
+    const e = ctx.createGain();
+    e.gain.setValueAtTime(vel, t);
+    e.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    o.connect(e).connect(dest);
+    o.start(t);
+    o.stop(t + len + 0.02);
+    burst(ctx, dest, t, { dur: 0.01, gain: vel * 0.12, freq: 2200 }); // beater click
+  };
+  const snare = (t, vel = 1) => {
+    burst(ctx, dest, t, { dur: 0.18, gain: 0.45 * vel, type: "bandpass", freq: 2100, q: 0.7 });
+    burst(ctx, dest, t, { dur: 0.12, gain: 0.1 * vel, freq: 5500 });
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(210, t);
+    o.frequency.exponentialRampToValueAtTime(160, t + 0.08);
+    const e = ctx.createGain();
+    e.gain.setValueAtTime(0.3 * vel, t);
+    e.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+    o.connect(e).connect(dest);
+    o.start(t);
+    o.stop(t + 0.12);
+  };
+  const clap = (t, vel = 1) => {
+    for (let k = 0; k < 3; k++) burst(ctx, dest, t + k * 0.011, { dur: 0.03, gain: 0.32 * vel, type: "bandpass", freq: 1500, q: 1.2 });
+    burst(ctx, dest, t + 0.033, { dur: 0.22, gain: 0.26 * vel, type: "bandpass", freq: 1400, q: 1 });
+  };
+  const hat = (t, vel = 1, open = false) => burst(ctx, dest, t, { dur: open ? 0.22 : 0.035, gain: 0.06 * vel, freq: 8500 });
+  return { kick, snare, clap, hat };
+}
+
+// A sine "808" with a bit of saturation so its harmonics still come through laptop speakers.
+function makeShaper(ctx) {
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < 1024; i++) { const x = (i / 512) - 1; curve[i] = Math.tanh(x * 2.2); }
+  const sh = ctx.createWaveShaper();
+  sh.curve = curve;
+  return sh;
+}
+function sub808(ctx, shaper, midi, t, dur, vel, glideFrom) {
+  const o = ctx.createOscillator();
+  const f = mtof(midi);
+  if (glideFrom) {
+    o.frequency.setValueAtTime(mtof(glideFrom), t);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.08);
+  } else {
+    o.frequency.setValueAtTime(f * 1.6, t);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.03);
+  }
+  const e = ctx.createGain();
+  e.gain.setValueAtTime(0, t);
+  e.gain.linearRampToValueAtTime(vel, t + 0.006);
+  e.gain.setValueAtTime(vel, t + Math.max(0.01, dur * 0.55));
+  e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(e).connect(shaper);
+  o.start(t);
+  o.stop(t + dur + 0.03);
+}
+
+/* ---------------- Boom bap ---------------- */
+const BOOM_PROGS = [
+  [ // Am7, Fmaj7, Dm7, E7
+    { notes: [57, 60, 64, 67], bass: 33 }, { notes: [53, 57, 60, 64], bass: 29 },
+    { notes: [50, 53, 57, 60], bass: 38 }, { notes: [52, 56, 59, 62], bass: 40 },
+  ],
+  [ // Cm7, Abmaj7, Fm7, G7
+    { notes: [60, 63, 67, 70], bass: 36 }, { notes: [56, 60, 63, 67], bass: 32 },
+    { notes: [53, 56, 60, 63], bass: 29 }, { notes: [55, 59, 62, 65], bass: 31 },
+  ],
+  [ // Dm7, Bbmaj7, Gm7, A7
+    { notes: [50, 53, 57, 60], bass: 38 }, { notes: [58, 62, 65, 69], bass: 34 },
+    { notes: [55, 58, 62, 65], bass: 31 }, { notes: [57, 61, 64, 67], bass: 33 },
+  ],
+];
+const CHOP_PATTERNS = [[0, 6, 10], [0, 3, 8, 11], [0, 7, 10, 14], [0, 3, 6, 10]];
+const KICK_PATTERNS = [[0, 7, 10], [0, 5, 10, 13], [0, 3, 10], [0, 7, 11]];
+
+function boombap(ctx, out) {
+  const s = session(ctx, out, 0.55);
+  const bpm = Math.round(rand(86, 94));
+  const step = 60 / bpm / 4;
+  const swing = 0.27;
+  const prog = pick(BOOM_PROGS);
+  const chops = pick(CHOP_PATTERNS);
+
+  // The "sample": chords through a dusty band-limited filter, like a chopped record.
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 220;
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 3000;
+  const sample = ctx.createGain();
+  sample.connect(hp).connect(lp).connect(s.mix);
+  const verb = reverb(ctx, 1.4, 3);
+  const wet = ctx.createGain();
+  wet.gain.value = 0.16;
+  lp.connect(verb);
+  verb.connect(wet).connect(s.mix);
+
+  const drumBus = ctx.createGain();
+  drumBus.connect(s.mix);
+  const kit = drumKit(ctx, drumBus);
+  const shaper = makeShaper(ctx);
+  const bassG = ctx.createGain();
+  bassG.gain.value = 0.55;
+  shaper.connect(bassG).connect(s.mix);
+
+  const hissF = ctx.createBiquadFilter();
+  hissF.type = "highpass";
+  hissF.frequency.value = 3500;
+  const hissG = ctx.createGain();
+  hissG.gain.value = 0.007;
+  s.loop("white").connect(hissF).connect(hissG).connect(s.mix);
+
+  // A piano-ish stab: quick attack, fast decay, so it feels chopped.
+  const stab = (midi, t, dur, vel) => {
+    const f = mtof(midi);
+    for (const [mult, g, type] of [[1, 1, "triangle"], [2, 0.35, "sine"]]) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = f * mult;
+      const e = ctx.createGain();
+      e.gain.setValueAtTime(0, t);
+      e.gain.linearRampToValueAtTime(vel * g, t + 0.004);
+      e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(e).connect(sample);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    }
+  };
+
+  let n = 0;
+  let next = ctx.currentTime + 0.15;
+  let nextPop = next;
+  let kickPat = KICK_PATTERNS[0];
+
+  const tick = (until) => {
+    while (next < until) {
+      const i = n % 16;
+      const bar = Math.floor(n / 16);
+      const chord = prog[Math.floor(bar / 2) % prog.length]; // each chord lasts two bars
+      const t = next + (i % 2 ? swing * step : 0) + rand(-0.004, 0.004);
+      if (i === 0) kickPat = bar % 4 === 3 ? pick(KICK_PATTERNS) : KICK_PATTERNS[bar % 2 ? 1 : 0];
+
+      if (chops.includes(i)) chord.notes.forEach((m, k) => stab(m, t + k * 0.006, step * (i === 0 ? 3.2 : 2), i === 0 ? 0.07 : 0.05));
+      if (kickPat.includes(i)) kit.kick(t, i === 0 ? 1 : 0.8);
+      if (i === 4 || i === 12) kit.snare(t, 0.95 + rand(-0.1, 0.05));
+      if (i % 2 === 0) kit.hat(t, i % 4 === 0 ? 1.1 : rand(0.5, 0.8));
+      else if (Math.random() < 0.15) kit.hat(t, 0.4);
+      if (i === 14 && Math.random() < 0.35) kit.hat(t, 0.9, true);
+      if (i === 0) sub808(ctx, shaper, chord.bass, t, step * 6, 0.85);
+      if (i === 10) sub808(ctx, shaper, chord.bass, t, step * 3.5, 0.7);
+      if (i === 14 && bar % 4 === 3) sub808(ctx, shaper, chord.bass + 7, t, step * 1.8, 0.6);
+      n++;
+      next += step;
+    }
+    while (nextPop < until) {
+      nextPop += rand(0.04, 0.35);
+      burst(ctx, s.mix, nextPop, { dur: rand(0.002, 0.008), gain: rand(0.015, 0.06), freq: 1400 });
+    }
+  };
+  return { tick, end: s.end };
+}
+
+/* ---------------- Trap 808 ---------------- */
+const TRAP_ROOTS = [ // 808 root per bar, in A minor
+  [33, 33, 29, 31], [33, 29, 31, 28], [29, 33, 31, 31],
+];
+const TRAP_KICKS = [[0, 10, 14], [0, 3, 10], [0, 7, 11, 15], [0, 6, 10]];
+const MINOR_PENTA = [69, 72, 74, 76, 79, 81, 84];
+
+function trap(ctx, out) {
+  const s = session(ctx, out, 0.42);
+  const bpm = Math.round(rand(138, 148));
+  const step = 60 / bpm / 4;
+  const roots = pick(TRAP_ROOTS);
+
+  const drumBus = ctx.createGain();
+  drumBus.connect(s.mix);
+  const kit = drumKit(ctx, drumBus);
+  const shaper = makeShaper(ctx);
+  const bassG = ctx.createGain();
+  bassG.gain.value = 0.6;
+  shaper.connect(bassG).connect(s.mix);
+
+  // Bells and plucks with a ping-pong-ish echo.
+  const bellBus = ctx.createGain();
+  const delay = ctx.createDelay(2);
+  delay.delayTime.value = step * 3;
+  const fb = ctx.createGain();
+  fb.gain.value = 0.38;
+  const dlp = ctx.createBiquadFilter();
+  dlp.type = "lowpass";
+  dlp.frequency.value = 2400;
+  bellBus.connect(s.mix);
+  bellBus.connect(delay);
+  delay.connect(dlp).connect(fb).connect(delay);
+  dlp.connect(s.mix);
+  const verb = reverb(ctx, 2.2, 2.6);
+  const wet = ctx.createGain();
+  wet.gain.value = 0.25;
+  bellBus.connect(verb);
+  verb.connect(wet).connect(s.mix);
+
+  const pluck = (midi, t, dur, vel) => {
+    for (const [mult, g, type] of [[1, 1, "triangle"], [2, 0.25, "sine"], [3, 0.08, "sine"]]) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = mtof(midi) * mult;
+      const e = ctx.createGain();
+      e.gain.setValueAtTime(0, t);
+      e.gain.linearRampToValueAtTime(vel * g, t + 0.004);
+      e.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(e).connect(bellBus);
+      o.start(t);
+      o.stop(t + dur + 0.05);
+    }
+  };
+
+  // Dark pad underneath.
+  const padLp = ctx.createBiquadFilter();
+  padLp.type = "lowpass";
+  padLp.frequency.value = 500;
+  padLp.connect(s.mix);
+  const padG = ctx.createGain();
+  padG.gain.value = 0.5;
+  padG.connect(padLp);
+  const pad = (midi, t, dur) => {
+    const o = ctx.createOscillator();
+    o.type = "sawtooth";
+    o.frequency.value = mtof(midi);
+    const e = ctx.createGain();
+    e.gain.setValueAtTime(0, t);
+    e.gain.linearRampToValueAtTime(0.02, t + 0.8);
+    e.gain.setValueAtTime(0.02, t + dur - 0.8);
+    e.gain.linearRampToValueAtTime(0, t + dur);
+    o.connect(e).connect(padG);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  };
+
+  let n = 0;
+  let next = ctx.currentTime + 0.15;
+  let kickPat = TRAP_KICKS[0];
+  let arp = [0, 2, 4, 2];
+
+  const tick = (until) => {
+    while (next < until) {
+      const i = n % 16;
+      const bar = Math.floor(n / 16);
+      const root = roots[bar % roots.length];
+      const t = next;
+      if (i === 0) {
+        kickPat = pick(TRAP_KICKS);
+        arp = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6));
+        [root + 24, root + 27, root + 31].forEach((m) => pad(m, t, step * 16));
+      }
+      if (kickPat.includes(i)) kit.kick(t, 0.7, 0.2);
+      if (i === 8) { kit.clap(t, 1); kit.snare(t, 0.5); }
+      // Hats: steady 16ths, with random 3-hit rolls and one open hat.
+      const hv = i % 4 === 0 ? 1 : rand(0.4, 0.7);
+      if (Math.random() < 0.9) kit.hat(t, hv);
+      if ((i === 6 || i === 14) && Math.random() < 0.55) {
+        for (let k = 1; k <= 2; k++) kit.hat(t + (step * k) / 3, 0.5 + k * 0.15);
+      }
+      if (i === 15 && bar % 2 === 1) kit.hat(t, 0.9, true);
+      // 808 follows the kicks, sometimes sliding to the next root.
+      if (kickPat.includes(i)) {
+        const dur = i === 0 ? step * 9 : step * 3.5;
+        const slide = i === 14 && Math.random() < 0.4 ? roots[(bar + 1) % roots.length] : null;
+        sub808(ctx, shaper, root, t, dur, 0.9, slide);
+      }
+      // Bell arpeggio in 8ths.
+      if (i % 2 === 0 && !(bar % 4 === 3 && i > 8)) {
+        pluck(MINOR_PENTA[arp[(i / 2) % 4]], t, step * 3, i % 8 === 0 ? 0.06 : 0.04);
+      }
+      n++;
+      next += step;
+    }
+  };
+  return { tick, end: s.end };
+}
+
+export const VIBES = { boombap, trap, lofi, dreamy, rain, ocean, fire, brown };
 
 /* ---------------- Master chain and live playback ---------------- */
 let volume = 0.5;

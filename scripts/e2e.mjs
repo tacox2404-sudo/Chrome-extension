@@ -41,13 +41,22 @@ ok(/Jordan/.test(await page.textContent("#greeting")), "AC-02/03 greeting uses t
 ok(/^\d{1,2}:\d{2}$/.test(await page.textContent("#clock")), "AC-02 clock shows time");
 await page.screenshot({ path: join(shots, "home.png") });
 
-// AC-04 main quest
-await page.fill("#quest-input", "Finish the PM doc");
-await page.press("#quest-input", "Enter");
-ok(await page.isVisible("#quest-view"), "AC-04 main quest saved");
-await page.check("#quest-check");
+// AC-04 main quests (up to 3 a day)
+for (const q of ["Finish the PM doc", "Study for stats quiz", "Gym at 6"]) {
+  await page.fill("#quest-input", q);
+  await page.press("#quest-input", "Enter");
+}
+ok((await page.locator("#quest-list li").count()) === 3, "AC-04 three main quests listed");
+ok(!(await page.isVisible("#quest-form")), "AC-04 add box hides at the cap of 3");
+await page.locator("#quest-list input").nth(0).click();
 ok((await page.textContent("#aura-pts")) === "30", "AC-04 main quest gives 30 aura");
 ok((await page.textContent("#streak")) === "1", "AC-09 streak starts at 1");
+await page.locator("#quest-list input").nth(0).click(); // untick
+await page.locator("#quest-list input").nth(0).click(); // tick again
+ok((await page.textContent("#aura-pts")) === "30", "AC-04 re-ticking does not pay aura twice");
+await page.locator("#quest-list input").nth(1).click();
+await page.locator("#quest-list input").nth(2).click();
+ok((await page.textContent("#aura-pts")) === "110", "AC-04 all three done: 3 x 30 plus 20 board-cleared bonus");
 
 // AC-05 side quests
 ok(await page.isVisible("#task-input"), "AC-05 side quests are on the main page, no panel to open");
@@ -57,7 +66,7 @@ for (const t of ["Email the professor", "Read chapter 4", "Reply to group chat",
 }
 ok((await page.locator("#task-list li").count()) === 4, "AC-05 four side quests listed");
 await page.locator("#task-list input").first().click(); // click, not check: the list re-sorts after ticking
-ok((await page.textContent("#aura-pts")) === "40", "AC-05 side quest gives 10 aura");
+ok((await page.textContent("#aura-pts")) === "120", "AC-05 side quest gives 10 aura");
 ok((await page.locator("#task-list li.done").count()) === 1 && (await page.locator("#task-list li:last-child").getAttribute("class")) === "done", "AC-05 finished quest sinks to the bottom");
 await page.screenshot({ path: join(shots, "home-with-side-quests.png") });
 
@@ -73,7 +82,7 @@ ok(!(await sw.evaluate(async () => await chrome.alarms.get("focus-end"))), "AC-0
 // simulate a session that ended while the tab was closed
 await page.evaluate(() => chrome.storage.local.set({ focus: { end: Date.now() - 1000, mins: 25 } }));
 await page.reload();
-await page.waitForFunction(() => document.getElementById("aura-pts").textContent === "90");
+await page.waitForFunction(() => document.getElementById("aura-pts").textContent === "170");
 ok(true, "AC-06 finished session pays 50 aura on next open");
 ok(!!(await sw.evaluate(async () => (await chrome.alarms.get("hydrate"))?.periodInMinutes)), "AC-11 hydration alarm is scheduled");
 await page.click("#panel-close").catch(() => {});
@@ -105,8 +114,8 @@ await page.click("#panel-close");
 
 // AC-08 vibes
 await page.click('[data-open="vibes"]');
-for (const v of ["lofi", "dreamy", "rain", "ocean", "fire", "brown", "off"]) await page.click(`[data-vibe="${v}"]`);
-await page.click('[data-vibe="lofi"]');
+for (const v of ["boombap", "trap", "lofi", "dreamy", "rain", "ocean", "fire", "brown", "off"]) await page.click(`[data-vibe="${v}"]`);
+await page.click('[data-vibe="boombap"]');
 await page.screenshot({ path: join(shots, "vibes.png") });
 await page.click('[data-vibe="off"]');
 ok(true, "AC-08 all vibes start and stop");
@@ -143,14 +152,44 @@ await page.click("#panel-close");
 // AC-10 boss key
 await page.keyboard.press("b");
 ok(await page.isVisible("#boss"), "AC-10 boss key shows the fake doc");
+const bossInfo = await page.evaluate(() => ({
+  h1: document.querySelector("#boss h1")?.textContent || "",
+  tables: document.querySelectorAll("#boss table").length,
+  svg: document.querySelectorAll("#boss svg").length,
+  kpis: document.querySelectorAll("#boss .bd-kpi").length,
+  comments: document.querySelectorAll("#boss .bd-comment").length,
+  words: document.getElementById("boss").innerText.split(/\s+/).length,
+}));
+ok(/^(P0|CRITICAL|URGENT|ESCALATION):/.test(bossInfo.h1), `AC-10 boss doc has an emergency title: ${bossInfo.h1}`);
+ok(bossInfo.tables >= 3 && bossInfo.svg === 1 && bossInfo.kpis === 4 && bossInfo.comments >= 3 && bossInfo.words > 700, `AC-10 boss doc looks dense (${bossInfo.tables} tables, chart, ${bossInfo.kpis} KPIs, ${bossInfo.comments} comments, ${bossInfo.words} words)`);
+ok(/^[A-Za-z0-9_]+\.docx$/.test(await page.title()), `AC-10 tab title becomes a file name: ${await page.title()}`);
 await page.screenshot({ path: join(shots, "boss-key.png") });
 await page.keyboard.press("b");
 ok(!(await page.isVisible("#boss")), "AC-10 boss key toggles back");
+await page.keyboard.press("b");
+const h1a = await page.textContent("#boss h1");
+await page.keyboard.press("Escape");
+ok(!(await page.isVisible("#boss")), "AC-10 Escape closes the boss doc");
+
+// AC-16 zen mode and full screen
+await page.keyboard.press("z");
+ok(await page.evaluate(() => document.body.classList.contains("zen")), "AC-16 zen mode hides the extras");
+await page.screenshot({ path: join(shots, "zen.png") });
+await page.keyboard.press("z");
+ok(!(await page.evaluate(() => document.body.classList.contains("zen"))), "AC-16 zen mode toggles back");
+await page.click("#btn-full");
+await page.waitForTimeout(500);
+const fs1 = await page.evaluate(async () => (await chrome.windows.getCurrent()).state);
+ok(fs1 === "fullscreen", `AC-16 full screen button puts the window in full screen (state: ${fs1})`);
+await page.keyboard.press("f");
+await page.waitForTimeout(500);
+const fs2 = await page.evaluate(async () => (await chrome.windows.getCurrent()).state);
+ok(fs2 !== "fullscreen", `AC-16 F key leaves full screen (state: ${fs2})`);
 
 // AC-03 persistence
 await page.reload();
 ok(/Jordan/.test(await page.textContent("#greeting")), "AC-03 name survives reload");
-ok((await page.textContent("#quest-text")) === "Finish the PM doc", "AC-04 quest survives reload");
+ok((await page.locator("#quest-list li span").first().textContent()) === "Finish the PM doc", "AC-04 quests survive reload");
 
 // AC-14 reset
 page.once("dialog", (d) => d.accept());

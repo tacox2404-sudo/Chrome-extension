@@ -16,14 +16,16 @@ Full product doc and acceptance criteria: [docs/PM-DOC.md](docs/PM-DOC.md)
 
 | Feature | Where to find it |
 |---|---|
-| Time, greeting, main quest, side quests | Center of the page |
+| Time, greeting, up to 3 main quests, side quests | Center of the page |
 | Lock In timer (15, 25, 45 min) | Dock, bottom |
 | Break Room: Snek, Reflex, Vibe Ball, Grass Quest | Dock |
-| Vibes: lo-fi beat, dreamy pads, rain, ocean, fireplace, brown noise | Dock |
+| Vibes: boom bap, trap 808, lo-fi beat, dreamy pads, rain, ocean, fireplace, brown noise | Dock |
 | Aura, rank, streak | Top left |
 | Meme card | Top right |
 | Gregory | Bottom right, poke him |
-| Boss key | Press `B` |
+| Boss key: a very urgent, very buzzword-heavy fake document | Press `B` |
+| Full screen (hides Chrome's tab strip and toolbar) | Press `F` or the dock button |
+| Zen mode (only clock and quests) | Press `Z` or the dock button |
 
 ## Test it
 

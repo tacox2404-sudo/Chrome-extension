@@ -35,7 +35,9 @@ Ideas we considered, with the call we made.
 | Generated sounds (lo-fi beat, dreamy pads, rain and thunder, ocean, fireplace, brown noise) | In | No audio files, no copyright problem, no downloads, works offline. |
 | Meme card (two-liner captions plus emoji) | In | Relatable humor, no image licensing. Rotates on click. |
 | Gregory the frog (mascot with opinions) | In | Gives the extension a personality people remember. |
-| Boss key (press B for a fake document) | In | Student humor, and very cheap to build. |
+| Boss key (press B for a fake consultant document) | In | Student humor. Generated from buzzword lists, so it is cheap and never repeats. |
+| Hip hop beats (boom bap and trap, synthesized) | In | Fits the audience. Built from generated drums, 808 bass and chopped chords, so no samples and no copyright issue. |
+| Full screen and zen mode | In | A cleaner look. Extensions cannot hide Chrome's own bars, but they can put the window in full screen. |
 | Background scenes that change with the time of day | In | Pure CSS gradients, no image downloads. |
 | Real photos from an image API (Unsplash style) | Later | Needs network access and an API key, which breaks our privacy promise. |
 | Real meme images from Reddit or an API | Later | Same reason, plus moderation risk. |
@@ -61,25 +63,27 @@ Priority: **P0** must ship, **P1** should ship.
 | F1 | New tab takeover | As a student, when I open a new tab I see Touch Grass Tab instead of a blank page. | P0 |
 | F2 | Clock and greeting | I see the time and a slang greeting that matches the time of day and uses my name. | P0 |
 | F3 | Onboarding | The first time, it asks what to call me and remembers it. | P0 |
-| F4 | Main quest | I set one main goal per day, tick it off and get rewarded. It resets the next day. | P0 |
+| F4 | Main quests | I set up to three main goals per day, tick them off and get rewarded. They reset the next day. | P0 |
 | F5 | Side quests | I see my to-do list right under the main quest, add to it without opening anything, and it survives closing the browser. | P0 |
 | F6 | Lock-in timer | I run a 15, 25 or 45 minute focus timer and get a notification when it ends, even if I closed the tab. | P0 |
 | F7 | Aura, rank, streak | I earn points for finishing things, see my rank and a daily streak. | P1 |
 | F8 | Break Room | I can play Snek, test my reflexes, ask the Vibe Ball, or get a real-world Grass Quest. | P1 |
-| F9 | Vibes | I can play a lo-fi beat, dreamy pads, rain, ocean, fireplace or brown noise and set the volume. | P1 |
+| F9 | Vibes | I can play a boom bap beat, a trap beat, a lo-fi beat, dreamy pads, rain, ocean, fireplace or brown noise and set the volume. | P1 |
 | F10 | Memes and wisdom | I see a rotating meme and a one-line pep talk. | P1 |
 | F11 | Gregory | I can poke a frog mascot for a funny line. | P1 |
 | F12 | Scenes | The background changes with the time of day and I can cycle it. | P1 |
 | F13 | Hydration reminder | I get an hourly water notification and can switch it off. | P1 |
-| F14 | Boss key | I press B to swap the page for a boring fake document. | P1 |
+| F14 | Boss key | I press B and the page becomes a dense, urgent-looking consultant document (fresh buzzwords every time) with a chart, tables, timeline and comments. | P1 |
+| F16 | Full screen and zen | I press F for full screen (Chrome's tab strip and toolbar disappear) and Z for zen mode (only clock and quests stay visible). | P1 |
 | F15 | Settings and reset | I can change my name, the clock format, the reminder, and wipe my data. | P1 |
 
 ### Aura rules
 
 | Action | Aura |
 |---|---|
-| Finish main quest | +30 |
-| Finish a side quest | +10 |
+| Finish a main quest (once each, un-ticking does not pay again) | +30 |
+| Clear the whole board (2 or 3 main quests, all done) | +20 bonus |
+| Finish a side quest (once each) | +10 |
 | Finish a lock-in (25 min = 50, scales with length) | +50 for 25 min |
 | Snek score of 3 or more | score divided by 3, rounded down |
 | New personal best on Reflex | +10 |
@@ -98,21 +102,23 @@ The build is done when every P0 row passes. `npm run check` covers the static on
 | AC-01 | The extension loads in Chrome as Manifest V3 and opens `newtab.html` on every new tab. | Load unpacked, open a tab. | check + e2e |
 | AC-02 | The page shows the current time and a greeting containing the user's name. Greeting text matches the time-of-day group. | Look at the page at different hours. | e2e |
 | AC-03 | On first run a name prompt appears. The name is saved and still shown after a reload. | Reload the page. | e2e |
-| AC-04 | Main quest can be set, ticked (+30 aura) and survives reload. A quest from a previous day is not shown. | Set it, tick it, reload. | e2e |
+| AC-04 | Up to three main quests can be added. Each pays 30 aura once, even if un-ticked and re-ticked. Finishing all gives a 20 bonus. The add box hides at three. Quests survive reload and a previous day's quests are not shown. | Add three, tick them, reload. | e2e |
 | AC-05 | Side quests are visible on the main page. They can be added with Enter, ticked (+10 aura, finished ones sink to the bottom), deleted, cleared in one click, and survive reload. | Use the list. | e2e |
 | AC-06 | The lock-in timer starts, counts down, and can be cancelled without aura. If the session ends while the tab is closed, the aura is paid on the next open. | Start, cancel, and simulate an expired session. | e2e |
 | AC-07 | All four Break Room activities work. Snek runs and ends on a crash. Reflex punishes early taps and reports milliseconds. Vibe Ball answers. Grass Quest gives +5 once per quest. | Play each one. | e2e |
-| AC-08 | All six vibes start and stop without errors. Each one, rendered offline for 24 s, has no bad samples, does not clip, and sits between -45 and -12 dBFS RMS. The volume slider works. | Click each vibe. | e2e (levels) |
+| AC-08 | All eight vibes start and stop without errors. Each one, rendered offline for 24 s, has no bad samples, does not clip, and sits between -45 and -12 dBFS RMS. The volume slider works. | Click each vibe. | e2e (levels) |
 | AC-09 | Rank, aura and streak update immediately and persist. Streak increases only once per day. | Do an action on two days. | e2e (day 1) |
-| AC-10 | Pressing B (outside a text field) toggles the fake document. Escape also closes it. | Press B. | e2e |
+| AC-10 | Pressing B (outside a text field) shows a full-page fake document with an urgent title, tables, a chart, KPIs, a timeline and comments, and the tab title becomes a .docx file name. It regenerates each time. B or Escape closes it. | Press B a few times. | e2e |
 | AC-11 | A focus alarm is scheduled with the browser when a lock-in starts and cleared on cancel. An hourly hydration alarm exists unless disabled. | Inspect alarms. | e2e |
 | AC-12 | Privacy: zero network requests, no remote scripts, no `eval`, only the permissions `storage`, `alarms`, `notifications`. | Static scan and network log. | check + e2e |
 | AC-13 | The page is ready in under 1.5 s. Everything works with keyboard only. Animations stop when the OS asks for reduced motion. | Timing and manual keyboard pass. | check + e2e (timing) |
+| AC-16 | The full screen button and the F key toggle the browser window between full screen and normal. The Z key and Zen button toggle zen mode. | Press F and Z. | e2e |
 | AC-14 | "Reset all my data" wipes everything after a confirmation and returns to the name prompt. | Use the button. | e2e |
 | AC-15 | Content pack has at least 15 memes and 8 break quests and no em dashes in the copy. | Count entries. | check |
 
 Manual checks the scripts cannot do (do these before showing it to the professor):
 - Notification actually pops up when a real 15 minute timer ends (system notification settings must allow Chrome).
+- Hip hop beats: judge the drums, bass and swing on real speakers. Synthesized beats will not sound like a produced track, so tell us if a piece feels off.
 - Sound is pleasant on real speakers and headphones, and the volume feels sane at default. The e2e test proves the levels are safe, not that the music sounds good. Listen to lofi, dreamy and rain.
 - Read all copy once out loud. If it sounds forced, fix it in `slang.js`.
 

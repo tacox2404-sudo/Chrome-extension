@@ -1,9 +1,10 @@
 import {
   GREETINGS, QUEST_PROMPTS, QUEST_DONE, WISDOM, GREGORY_LINES, GREGORY_ANNOYED, MEMES,
-  BREAK_QUESTS, FOCUS_DONE_LINES, LEVELS, SCENES, FAKE_DOC_TITLE, FAKE_DOC_LINES,
+  BREAK_QUESTS, FOCUS_DONE_LINES, LEVELS, SCENES,
 } from "./slang.js";
 import { createSnake, createReflex, createBall } from "./games.js";
 import { setVibe, setVolume, blip } from "./audio.js";
+import { renderBoss } from "./boss.js";
 
 const $ = (id) => document.getElementById(id);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -12,14 +13,14 @@ const hasChrome = typeof chrome !== "undefined" && chrome.storage?.local;
 /* ---------- State + storage (falls back to localStorage outside Chrome) ---------- */
 const DEFAULTS = {
   name: "",
-  quest: null, // { text, date, done }
+  quests: null, // { date, items: [{ text, done, paid }], bonus }
   tasks: [],
   aura: 0,
   streak: 0,
   lastActive: null,
   best: { snake: 0, reflex: null },
   focus: null, // { end, mins }
-  settings: { hydrate: true, h24: false, scene: null },
+  settings: { hydrate: true, h24: false, scene: null, zen: false },
 };
 let state = structuredClone(DEFAULTS);
 
@@ -29,6 +30,11 @@ async function load() {
     if (hasChrome) saved = await chrome.storage.local.get(null);
     else saved = JSON.parse(localStorage.getItem("tgt") || "{}");
   } catch { /* fresh start */ }
+  if (saved.quest && !saved.quests) { // v1 stored a single main quest
+    saved.quests = { date: saved.quest.date, items: [{ text: saved.quest.text, done: saved.quest.done, paid: saved.quest.done }] };
+  }
+  delete saved.quest;
+  try { if (hasChrome) chrome.storage.local.remove("quest"); } catch { /* ignore */ }
   state = { ...structuredClone(DEFAULTS), ...saved };
   state.settings = { ...DEFAULTS.settings, ...(saved.settings || {}) };
   state.best = { ...DEFAULTS.best, ...(saved.best || {}) };
@@ -133,40 +139,61 @@ function initScene() {
   applyScene(state.settings.scene ?? auto);
 }
 
-/* ---------- Main quest ---------- */
+/* ---------- Main quests (up to 3 a day) ---------- */
+const MAX_QUESTS = 3;
+
+function todaysQuests() {
+  if (!state.quests || state.quests.date !== dayKey()) state.quests = { date: dayKey(), items: [], bonus: false };
+  return state.quests.items;
+}
+
 function renderQuest() {
-  const q = state.quest && state.quest.date === dayKey() ? state.quest : null;
-  if (!q) state.quest = null;
-  $("quest-form").hidden = !!q;
-  $("quest-view").hidden = !q;
-  $("quest-label").hidden = !!q;
-  $("quest-input").placeholder = pick(QUEST_PROMPTS);
-  if (q) {
-    $("quest-text").textContent = q.text;
-    $("quest-check").checked = q.done;
-    $("quest-view").classList.toggle("done", q.done);
-    $("quest-msg").textContent = q.done ? pick(QUEST_DONE) : "";
-  } else {
-    $("quest-msg").textContent = "";
-  }
+  const items = todaysQuests();
+  const list = $("quest-list");
+  list.replaceChildren();
+  items.forEach((q, i) => {
+    const li = document.createElement("li");
+    li.className = q.done ? "done" : "";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = q.done;
+    cb.setAttribute("aria-label", `Main quest done: ${q.text}`);
+    cb.addEventListener("change", () => {
+      q.done = cb.checked;
+      if (q.done && !q.paid) { q.paid = true; addAura(30, true); } // paid once, so un-ticking can't farm aura
+      const all = items.length >= 2 && items.every((x) => x.done);
+      if (all && !state.quests.bonus) { state.quests.bonus = true; addAura(20, true); }
+      save();
+      renderQuest();
+    });
+    const span = document.createElement("span");
+    span.textContent = q.text;
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "✕";
+    del.setAttribute("aria-label", `Delete main quest: ${q.text}`);
+    del.addEventListener("click", () => { items.splice(i, 1); save(); renderQuest(); });
+    li.append(cb, span, del);
+    list.append(li);
+  });
+  const done = items.filter((q) => q.done).length;
+  $("quest-form").hidden = items.length >= MAX_QUESTS;
+  $("quest-label").textContent = items.length ? "Main quests today" : "Main quests today (up to 3)";
+  $("quest-input").placeholder = items.length ? "+ Add another main quest" : pick(QUEST_PROMPTS);
+  $("quest-msg").textContent = !items.length ? "" : done === items.length && items.length >= 2 ? `${pick(QUEST_DONE)} Board cleared, +20 bonus.` : done === items.length ? pick(QUEST_DONE) : `${done} of ${items.length} done`;
 }
 
 $("quest-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $("quest-input").value.trim();
-  if (!text) return;
-  state.quest = { text, date: dayKey(), done: false };
+  const items = todaysQuests();
+  if (!text || items.length >= MAX_QUESTS) return;
+  items.push({ text, done: false, paid: false });
   $("quest-input").value = "";
   save();
   renderQuest();
+  if (items.length < MAX_QUESTS) $("quest-input").focus();
 });
-$("quest-check").addEventListener("change", (e) => {
-  state.quest.done = e.target.checked;
-  save();
-  if (state.quest.done) addAura(30, true);
-  renderQuest();
-});
-$("quest-clear").addEventListener("click", () => { state.quest = null; save(); renderQuest(); $("quest-input").focus(); });
 
 /* ---------- Panels ---------- */
 let openPanel = null;
@@ -262,7 +289,7 @@ function renderTasks() {
     cb.setAttribute("aria-label", `Done: ${t.text}`);
     cb.addEventListener("change", () => {
       t.done = cb.checked;
-      if (t.done) addAura(10);
+      if (t.done && !t.paid) { t.paid = true; addAura(10); }
       save();
       renderTasks();
     });
@@ -285,7 +312,7 @@ $("task-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const text = $("task-input").value.trim();
   if (!text) return;
-  state.tasks.push({ text, done: false });
+  state.tasks.push({ text, done: false, paid: false });
   $("task-input").value = "";
   save();
   renderTasks();
@@ -394,26 +421,42 @@ $("meme-next").addEventListener("click", nextMeme);
 $("scene-btn").addEventListener("click", () => { applyScene(((state.settings.scene ?? 0) + 1) % SCENES.length); save(); });
 
 /* ---------- Boss key ---------- */
-function buildFakeDoc() {
-  $("doc-title").textContent = `📄 ${FAKE_DOC_TITLE}`;
-  const body = $("doc-body");
-  body.replaceChildren();
-  FAKE_DOC_LINES.forEach((line, i) => {
-    const el = document.createElement(i % 2 === 0 ? "h3" : "p");
-    el.textContent = line;
-    body.append(el);
-  });
-}
 let bossOn = false;
 function toggleBoss() {
   bossOn = !bossOn;
   $("boss").hidden = !bossOn;
-  document.title = bossOn ? FAKE_DOC_TITLE : "New Tab";
+  if (bossOn) {
+    $("boss").scrollTop = 0;
+    document.title = renderBoss($("boss"));
+  } else {
+    document.title = "New Tab";
+  }
 }
+
+/* ---------- Full screen and zen ---------- */
+async function toggleFullscreen() {
+  try {
+    const w = await chrome.windows.getCurrent();
+    await chrome.windows.update(w.id, { state: w.state === "fullscreen" ? "normal" : "fullscreen" });
+  } catch {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  }
+}
+function applyZen() { document.body.classList.toggle("zen", !!state.settings.zen); }
+function toggleZen() { state.settings.zen = !state.settings.zen; save(); applyZen(); }
+$("btn-full").addEventListener("click", toggleFullscreen);
+$("btn-zen").addEventListener("click", toggleZen);
+
 document.addEventListener("keydown", (e) => {
   const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName) && document.activeElement.type !== "checkbox";
   if (e.key === "Escape") { if (bossOn) toggleBoss(); else closePanels(); return; }
-  if ((e.key === "b" || e.key === "B") && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) toggleBoss();
+  if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === "b") toggleBoss();
+  if (bossOn) return;
+  if (k === "f") toggleFullscreen();
+  if (k === "z") toggleZen();
 });
 
 /* ---------- Name onboarding ---------- */
@@ -428,7 +471,7 @@ $("name-form").addEventListener("submit", (e) => {
 /* ---------- Boot ---------- */
 (async function init() {
   await load();
-  buildFakeDoc();
+  applyZen();
   initScene();
   renderClock();
   setInterval(renderClock, 1000);

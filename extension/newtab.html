@@ -17,15 +17,11 @@
     <h1 id="greeting">Loading vibes...</h1>
 
     <section id="quest">
-      <label id="quest-label" for="quest-input">Main quest today</label>
+      <label id="quest-label" for="quest-input">Main quests today</label>
+      <ul id="quest-list"></ul>
       <form id="quest-form" autocomplete="off">
         <input id="quest-input" type="text" maxlength="120" placeholder="What's the main quest today?">
       </form>
-      <div id="quest-view" hidden>
-        <input id="quest-check" type="checkbox" aria-label="Main quest done">
-        <span id="quest-text"></span>
-        <button id="quest-clear" class="ghost" title="Change quest" aria-label="Change quest">✕</button>
-      </div>
       <p id="quest-msg" aria-live="polite"></p>
     </section>
 
@@ -51,6 +47,8 @@
     <button data-open="focus" id="dock-focus">🎯 <span>Lock In</span></button>
     <button data-open="games">🎮 <span>Break Room</span></button>
     <button data-open="vibes" id="dock-vibes">🎧 <span>Vibes</span></button>
+    <button id="btn-full" title="Full screen (F)">⛶ <span>Full screen</span></button>
+    <button id="btn-zen" title="Zen mode (Z)">🧘 <span>Zen</span></button>
     <button data-open="settings">⚙️ <span>Settings</span></button>
   </nav>
 
@@ -132,6 +130,8 @@
         <h2>Vibes</h2>
         <p class="sub">Made live in your browser. No downloads, no ads, no cap.</p>
         <div class="row tabs" id="vibe-choices">
+          <button data-vibe="boombap" class="chip">🎤 Boom bap</button>
+          <button data-vibe="trap" class="chip">🔊 Trap 808</button>
           <button data-vibe="lofi" class="chip">🎹 Lo-fi beat</button>
           <button data-vibe="dreamy" class="chip">☁️ Dreamy pads</button>
           <button data-vibe="rain" class="chip">🌧️ Rain and thunder</button>
@@ -148,20 +148,14 @@
         <label class="row">Name <input id="set-name" type="text" maxlength="20" placeholder="What do people call you?"></label>
         <label class="row"><input id="set-24h" type="checkbox"> 24 hour clock</label>
         <label class="row"><input id="set-hydrate" type="checkbox"> Hourly hydration reminder</label>
-        <p class="sub">Boss key: press <kbd>B</kbd> on the new tab to instantly look busy.</p>
+        <p class="sub">Shortcuts on the new tab: <kbd>B</kbd> boss key, <kbd>F</kbd> full screen, <kbd>Z</kbd> zen mode.</p>
         <div class="row"><button id="set-reset" class="ghost">Reset all my data</button></div>
         <p id="set-msg" aria-live="polite"></p>
       </section>
     </div>
   </div>
 
-  <div id="boss" hidden>
-    <div class="doc">
-      <div class="doc-bar" id="doc-title"></div>
-      <div class="doc-page" id="doc-body"></div>
-      <div class="doc-hint">Press B to come back to the fun.</div>
-    </div>
-  </div>
+  <div id="boss" hidden></div>
 
   <div id="name-modal" hidden>
     <form id="name-form" autocomplete="off">
