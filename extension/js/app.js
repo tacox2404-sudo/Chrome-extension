@@ -1,0 +1,439 @@
+import {
+  GREETINGS, QUEST_PROMPTS, QUEST_DONE, WISDOM, GREGORY_LINES, GREGORY_ANNOYED, MEMES,
+  BREAK_QUESTS, FOCUS_DONE_LINES, LEVELS, SCENES, FAKE_DOC_TITLE, FAKE_DOC_LINES,
+} from "./slang.js";
+import { createSnake, createReflex, createBall } from "./games.js";
+import { setVibe, setVolume, blip } from "./audio.js";
+
+const $ = (id) => document.getElementById(id);
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const hasChrome = typeof chrome !== "undefined" && chrome.storage?.local;
+
+/* ---------- State + storage (falls back to localStorage outside Chrome) ---------- */
+const DEFAULTS = {
+  name: "",
+  quest: null, // { text, date, done }
+  tasks: [],
+  aura: 0,
+  streak: 0,
+  lastActive: null,
+  best: { snake: 0, reflex: null },
+  focus: null, // { end, mins }
+  settings: { hydrate: true, h24: false, scene: null },
+};
+let state = structuredClone(DEFAULTS);
+
+async function load() {
+  let saved = {};
+  try {
+    if (hasChrome) saved = await chrome.storage.local.get(null);
+    else saved = JSON.parse(localStorage.getItem("tgt") || "{}");
+  } catch { /* fresh start */ }
+  state = { ...structuredClone(DEFAULTS), ...saved };
+  state.settings = { ...DEFAULTS.settings, ...(saved.settings || {}) };
+  state.best = { ...DEFAULTS.best, ...(saved.best || {}) };
+}
+
+function save() {
+  try {
+    if (hasChrome) chrome.storage.local.set(state);
+    else localStorage.setItem("tgt", JSON.stringify(state));
+  } catch { /* storage full or blocked, keep running */ }
+}
+
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const say = (type, extra = {}) => { try { if (hasChrome) chrome.runtime.sendMessage({ type, ...extra }); } catch { /* no background */ } };
+
+/* ---------- Aura, levels, streak ---------- */
+function levelFor(aura) {
+  let idx = 0;
+  LEVELS.forEach(([min], i) => { if (aura >= min) idx = i; });
+  const next = LEVELS[idx + 1];
+  const min = LEVELS[idx][0];
+  return { name: LEVELS[idx][1], progress: next ? (aura - min) / (next[0] - min) : 1 };
+}
+
+function renderAura() {
+  const lv = levelFor(state.aura);
+  $("level").textContent = lv.name;
+  $("aura-pts").textContent = state.aura;
+  $("streak").textContent = state.streak;
+  $("aura-bar").style.width = `${Math.round(lv.progress * 100)}%`;
+}
+
+function touchStreak() {
+  const today = dayKey();
+  if (state.lastActive === today) return;
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  state.streak = state.lastActive === dayKey(y) ? state.streak + 1 : 1;
+  state.lastActive = today;
+}
+
+function addAura(n, celebrate = false) {
+  const before = levelFor(state.aura).name;
+  state.aura += n;
+  touchStreak();
+  save();
+  renderAura();
+  blip();
+  if (celebrate || levelFor(state.aura).name !== before) confetti();
+}
+
+function confetti() {
+  const bits = ["✨", "🔥", "💅", "🐸", "💯", "🎉"];
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement("span");
+    el.className = "confetti";
+    el.textContent = pick(bits);
+    el.style.left = `${45 + Math.random() * 10}vw`;
+    el.style.top = "45vh";
+    el.style.setProperty("--dx", `${(Math.random() - 0.5) * 60}vw`);
+    el.style.setProperty("--dy", `${(Math.random() - 0.7) * 50}vh`);
+    el.style.setProperty("--r", `${Math.random() * 360}deg`);
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1700);
+  }
+}
+
+/* ---------- Clock + greeting ---------- */
+function renderClock() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, "0");
+  $("clock").textContent = state.settings.h24 ? `${String(h).padStart(2, "0")}:${m}` : `${h % 12 || 12}:${m}`;
+}
+
+function period(h) {
+  if (h >= 5 && h < 12) return "morning";
+  if (h >= 12 && h < 18) return "afternoon";
+  if (h >= 18 && h < 23) return "evening";
+  return "night";
+}
+
+function renderGreeting() {
+  const name = state.name || "bestie";
+  $("greeting").textContent = pick(GREETINGS[period(new Date().getHours())]).replace("{name}", name);
+}
+
+/* ---------- Scenes ---------- */
+function applyScene(i) {
+  const s = SCENES[i];
+  const root = document.documentElement.style;
+  root.setProperty("--c1", s.c1);
+  root.setProperty("--c2", s.c2);
+  root.setProperty("--c3", s.c3);
+  $("scene-name").textContent = s.name;
+  state.settings.scene = i;
+}
+
+function initScene() {
+  const h = new Date().getHours();
+  const auto = h < 5 ? 3 : h < 11 ? 1 : h < 17 ? 2 : h < 21 ? 4 : 0;
+  applyScene(state.settings.scene ?? auto);
+}
+
+/* ---------- Main quest ---------- */
+function renderQuest() {
+  const q = state.quest && state.quest.date === dayKey() ? state.quest : null;
+  if (!q) state.quest = null;
+  $("quest-form").hidden = !!q;
+  $("quest-view").hidden = !q;
+  $("quest-label").hidden = !!q;
+  $("quest-input").placeholder = pick(QUEST_PROMPTS);
+  if (q) {
+    $("quest-text").textContent = q.text;
+    $("quest-check").checked = q.done;
+    $("quest-view").classList.toggle("done", q.done);
+    $("quest-msg").textContent = q.done ? pick(QUEST_DONE) : "";
+  } else {
+    $("quest-msg").textContent = "";
+  }
+}
+
+$("quest-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("quest-input").value.trim();
+  if (!text) return;
+  state.quest = { text, date: dayKey(), done: false };
+  $("quest-input").value = "";
+  save();
+  renderQuest();
+});
+$("quest-check").addEventListener("change", (e) => {
+  state.quest.done = e.target.checked;
+  save();
+  if (state.quest.done) addAura(30, true);
+  renderQuest();
+});
+$("quest-clear").addEventListener("click", () => { state.quest = null; save(); renderQuest(); $("quest-input").focus(); });
+
+/* ---------- Panels ---------- */
+let openPanel = null;
+function open(name) {
+  closePanels();
+  openPanel = name;
+  $("overlay").hidden = false;
+  document.querySelectorAll("[data-panel]").forEach((s) => { s.hidden = s.dataset.panel !== name; });
+  if (name === "focus") renderFocus();
+  if (name === "quests") renderTasks();
+  if (name === "settings") renderSettings();
+  if (name === "games") selectGame(currentGame);
+}
+function closePanels() {
+  if (openPanel === "games") { snake.stop(); reflex.stop(); }
+  openPanel = null;
+  $("overlay").hidden = true;
+}
+document.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => open(b.dataset.open)));
+$("panel-close").addEventListener("click", closePanels);
+$("overlay").addEventListener("mousedown", (e) => { if (e.target === $("overlay")) closePanels(); });
+
+/* ---------- Focus timer ---------- */
+let focusMins = 25;
+const fmt = (ms) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+};
+
+function renderFocus() {
+  const f = state.focus;
+  $("focus-timer").textContent = f ? fmt(f.end - Date.now()) : `${String(focusMins).padStart(2, "0")}:00`;
+  $("focus-start").hidden = !!f;
+  $("focus-cancel").hidden = !f;
+  $("focus-choices").hidden = !!f;
+  $("dock-focus").classList.toggle("live", !!f);
+}
+
+function finishFocus() {
+  const mins = state.focus.mins;
+  state.focus = null;
+  addAura(Math.round((mins / 25) * 50), true);
+  save();
+  $("focus-msg").textContent = `${pick(FOCUS_DONE_LINES)} Break quest: ${pick(BREAK_QUESTS)}`;
+  document.title = "New Tab";
+  renderFocus();
+}
+
+setInterval(() => {
+  if (!state.focus) return;
+  if (Date.now() >= state.focus.end) finishFocus();
+  else {
+    const t = fmt(state.focus.end - Date.now());
+    $("focus-timer").textContent = t;
+    document.title = `${t} locked in`;
+  }
+}, 500);
+
+$("focus-choices").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mins]");
+  if (!b) return;
+  focusMins = Number(b.dataset.mins);
+  document.querySelectorAll("#focus-choices .chip").forEach((c) => c.classList.toggle("on", c === b));
+  renderFocus();
+});
+$("focus-start").addEventListener("click", () => {
+  state.focus = { end: Date.now() + focusMins * 60000, mins: focusMins };
+  save();
+  say("focus-start", { end: state.focus.end });
+  $("focus-msg").textContent = "Locked in. Phone face down. Let's cook.";
+  renderFocus();
+});
+$("focus-cancel").addEventListener("click", () => {
+  state.focus = null;
+  save();
+  say("focus-cancel");
+  document.title = "New Tab";
+  $("focus-msg").textContent = "Bailed. No aura, no shame. Try again when ready.";
+  renderFocus();
+});
+
+/* ---------- Side quests ---------- */
+function renderTasks() {
+  const list = $("task-list");
+  list.replaceChildren();
+  state.tasks.forEach((t, i) => {
+    const li = document.createElement("li");
+    li.className = t.done ? "done" : "";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = t.done;
+    cb.setAttribute("aria-label", `Done: ${t.text}`);
+    cb.addEventListener("change", () => {
+      t.done = cb.checked;
+      if (t.done) addAura(10);
+      save();
+      renderTasks();
+    });
+    const span = document.createElement("span");
+    span.textContent = t.text;
+    const del = document.createElement("button");
+    del.className = "ghost";
+    del.textContent = "✕";
+    del.setAttribute("aria-label", `Delete: ${t.text}`);
+    del.addEventListener("click", () => { state.tasks.splice(i, 1); save(); renderTasks(); });
+    li.append(cb, span, del);
+    list.append(li);
+  });
+  $("task-empty").hidden = state.tasks.length > 0;
+}
+$("task-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("task-input").value.trim();
+  if (!text) return;
+  state.tasks.push({ text, done: false });
+  $("task-input").value = "";
+  save();
+  renderTasks();
+});
+
+/* ---------- Games ---------- */
+let currentGame = "snake";
+const snake = createSnake($("snake"), {
+  onScore: (s) => { $("snake-score").textContent = s; },
+  onEnd: (s) => {
+    if (s > state.best.snake) { state.best.snake = s; $("snake-best").textContent = s; }
+    if (s >= 3) addAura(Math.floor(s / 3));
+    save();
+  },
+});
+const reflex = createReflex($("reflex-pad"), {
+  onResult: (ms) => {
+    if (state.best.reflex === null || ms < state.best.reflex) {
+      state.best.reflex = ms;
+      $("reflex-best").textContent = `${ms} ms`;
+      addAura(10);
+    }
+    save();
+  },
+});
+createBall($("ball"), $("ball-form"), $("ball-input"), $("ball-answer"));
+
+function selectGame(name) {
+  currentGame = name;
+  snake.stop();
+  reflex.stop();
+  document.querySelectorAll("#game-tabs .chip").forEach((c) => c.classList.toggle("on", c.dataset.game === name));
+  document.querySelectorAll("[data-gamebox]").forEach((g) => { g.hidden = g.dataset.gamebox !== name; });
+  $("snake-best").textContent = state.best.snake;
+  $("reflex-best").textContent = state.best.reflex === null ? "none yet" : `${state.best.reflex} ms`;
+  if (name === "quest") nextGrass();
+}
+$("game-tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-game]");
+  if (b) selectGame(b.dataset.game);
+});
+$("snake-start").addEventListener("click", () => snake.start());
+
+let grassDone = false;
+function nextGrass() {
+  $("grass-text").textContent = pick(BREAK_QUESTS);
+  grassDone = false;
+  $("grass-done").disabled = false;
+}
+$("grass-next").addEventListener("click", nextGrass);
+$("grass-done").addEventListener("click", () => {
+  if (grassDone) return;
+  grassDone = true;
+  $("grass-done").disabled = true;
+  addAura(5, true);
+});
+
+/* ---------- Vibes ---------- */
+$("vibe-choices").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-vibe]");
+  if (!b) return;
+  setVibe(b.dataset.vibe);
+  document.querySelectorAll("#vibe-choices .chip").forEach((c) => c.classList.toggle("on", c === b));
+});
+$("vibe-vol").addEventListener("input", (e) => setVolume(e.target.value / 100));
+
+/* ---------- Settings ---------- */
+function renderSettings() {
+  $("set-name").value = state.name;
+  $("set-24h").checked = state.settings.h24;
+  $("set-hydrate").checked = state.settings.hydrate;
+  $("set-msg").textContent = "";
+}
+$("set-name").addEventListener("change", (e) => { state.name = e.target.value.trim(); save(); renderGreeting(); });
+$("set-24h").addEventListener("change", (e) => { state.settings.h24 = e.target.checked; save(); renderClock(); });
+$("set-hydrate").addEventListener("change", (e) => { state.settings.hydrate = e.target.checked; save(); });
+$("set-reset").addEventListener("click", async () => {
+  if (!confirm("Wipe everything? Aura, streak, quests, all of it.")) return;
+  try { if (hasChrome) await chrome.storage.local.clear(); else localStorage.removeItem("tgt"); } catch { /* ignore */ }
+  say("focus-cancel");
+  location.reload();
+});
+
+/* ---------- Gregory, memes, wisdom ---------- */
+let pokes = 0, bubbleTimer;
+$("gregory").addEventListener("click", () => {
+  pokes++;
+  const line = pokes % 5 === 0 ? pick(GREGORY_ANNOYED) : pick(GREGORY_LINES);
+  const b = $("gregory-bubble");
+  b.textContent = line;
+  b.hidden = false;
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => { b.hidden = true; }, 4500);
+});
+
+function nextMeme() {
+  const [a, b, emoji] = pick(MEMES);
+  $("meme-a").textContent = a;
+  $("meme-b").textContent = b;
+  $("meme-emoji").textContent = emoji;
+}
+$("meme-next").addEventListener("click", nextMeme);
+
+$("scene-btn").addEventListener("click", () => { applyScene(((state.settings.scene ?? 0) + 1) % SCENES.length); save(); });
+
+/* ---------- Boss key ---------- */
+function buildFakeDoc() {
+  $("doc-title").textContent = `📄 ${FAKE_DOC_TITLE}`;
+  const body = $("doc-body");
+  body.replaceChildren();
+  FAKE_DOC_LINES.forEach((line, i) => {
+    const el = document.createElement(i % 2 === 0 ? "h3" : "p");
+    el.textContent = line;
+    body.append(el);
+  });
+}
+let bossOn = false;
+function toggleBoss() {
+  bossOn = !bossOn;
+  $("boss").hidden = !bossOn;
+  document.title = bossOn ? FAKE_DOC_TITLE : "New Tab";
+}
+document.addEventListener("keydown", (e) => {
+  const typing = /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName) && document.activeElement.type !== "checkbox";
+  if (e.key === "Escape") { if (bossOn) toggleBoss(); else closePanels(); return; }
+  if ((e.key === "b" || e.key === "B") && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) toggleBoss();
+});
+
+/* ---------- Name onboarding ---------- */
+$("name-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  state.name = $("name-input").value.trim();
+  save();
+  $("name-modal").hidden = true;
+  renderGreeting();
+});
+
+/* ---------- Boot ---------- */
+(async function init() {
+  await load();
+  buildFakeDoc();
+  initScene();
+  renderClock();
+  setInterval(renderClock, 1000);
+  renderGreeting();
+  renderQuest();
+  renderAura();
+  nextMeme();
+  $("wisdom").textContent = pick(WISDOM);
+  $("name-modal").hidden = !!state.name;
+  if (!state.name) $("name-input").focus();
+  // A lock-in that ended while this tab was closed still counts.
+  if (state.focus && Date.now() >= state.focus.end) finishFocus();
+  renderFocus();
+})();

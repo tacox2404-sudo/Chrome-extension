@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New Tab</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="bg" aria-hidden="true">
+    <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+    <span class="grain"></span>
+  </div>
+
+  <main id="stage">
+    <div id="clock" aria-live="off">--:--</div>
+    <h1 id="greeting">Loading vibes...</h1>
+
+    <section id="quest">
+      <label id="quest-label" for="quest-input">Main quest today</label>
+      <form id="quest-form" autocomplete="off">
+        <input id="quest-input" type="text" maxlength="120" placeholder="What's the main quest today?">
+      </form>
+      <div id="quest-view" hidden>
+        <input id="quest-check" type="checkbox" aria-label="Main quest done">
+        <span id="quest-text"></span>
+        <button id="quest-clear" class="ghost" title="Change quest" aria-label="Change quest">✕</button>
+      </div>
+      <p id="quest-msg" aria-live="polite"></p>
+    </section>
+
+    <p id="wisdom"></p>
+  </main>
+
+  <aside id="aura" aria-label="Your stats">
+    <div><span class="k">Rank</span> <b id="level">NPC</b></div>
+    <div><span class="k">Aura</span> <b id="aura-pts">0</b></div>
+    <div><span class="k">Streak</span> <b id="streak">0</b> 🔥</div>
+    <div class="bar"><i id="aura-bar"></i></div>
+  </aside>
+
+  <nav id="dock" aria-label="Tools">
+    <button data-open="focus" id="dock-focus">🎯 <span>Lock In</span></button>
+    <button data-open="quests">📝 <span>Side Quests</span></button>
+    <button data-open="games">🎮 <span>Break Room</span></button>
+    <button data-open="vibes">🎧 <span>Vibes</span></button>
+    <button data-open="settings">⚙️ <span>Settings</span></button>
+  </nav>
+
+  <button id="gregory" title="Poke Gregory" aria-label="Gregory the frog. Poke him for advice.">
+    <span class="frog">🐸</span>
+    <span id="gregory-bubble" hidden></span>
+  </button>
+
+  <figure id="meme">
+    <span id="meme-emoji">🫠</span>
+    <figcaption><b id="meme-a"></b><em id="meme-b"></em></figcaption>
+    <button id="meme-next" class="ghost">Another one</button>
+  </figure>
+
+  <button id="scene-btn" class="ghost" title="Change the vibe">🎨 <span id="scene-name"></span></button>
+
+  <!-- Panels -->
+  <div id="overlay" hidden>
+    <div class="panel" role="dialog" aria-modal="true" id="panel">
+      <button id="panel-close" class="ghost close" aria-label="Close">✕</button>
+
+      <section data-panel="focus" hidden>
+        <h2>Lock In</h2>
+        <p class="sub">Pick a timer. Finish it, get aura. Leave early, get nothing. Simple.</p>
+        <div id="focus-timer">25:00</div>
+        <div class="row" id="focus-choices">
+          <button data-mins="15" class="chip">15 min</button>
+          <button data-mins="25" class="chip on">25 min</button>
+          <button data-mins="45" class="chip">45 min</button>
+        </div>
+        <div class="row">
+          <button id="focus-start" class="big">Start lock-in</button>
+          <button id="focus-cancel" class="ghost" hidden>Bail out</button>
+        </div>
+        <p id="focus-msg" aria-live="polite"></p>
+      </section>
+
+      <section data-panel="quests" hidden>
+        <h2>Side Quests</h2>
+        <p class="sub">Small stuff. Each one you finish is +10 aura.</p>
+        <form id="task-form" class="row" autocomplete="off">
+          <input id="task-input" type="text" maxlength="80" placeholder="Add a side quest...">
+          <button class="big" type="submit">Add</button>
+        </form>
+        <ul id="task-list"></ul>
+        <p id="task-empty" class="sub">No side quests. Suspiciously free. Add one.</p>
+      </section>
+
+      <section data-panel="games" hidden>
+        <h2>Break Room</h2>
+        <p class="sub">Five minutes, zero guilt.</p>
+        <div class="row tabs" id="game-tabs">
+          <button data-game="snake" class="chip on">🐍 Snek</button>
+          <button data-game="reflex" class="chip">⚡ Reflex</button>
+          <button data-game="ball" class="chip">🎱 Vibe Ball</button>
+          <button data-game="quest" class="chip">🌱 Grass Quest</button>
+        </div>
+
+        <div class="game" data-gamebox="snake">
+          <canvas id="snake" width="320" height="320"></canvas>
+          <div class="row">
+            <button id="snake-start" class="big">Start</button>
+            <span>Score <b id="snake-score">0</b> · Best <b id="snake-best">0</b></span>
+          </div>
+          <p class="sub">Arrow keys or WASD. Eat the apples, skip the walls.</p>
+        </div>
+
+        <div class="game" data-gamebox="reflex" hidden>
+          <button id="reflex-pad" class="pad">Tap to start</button>
+          <p class="sub">Wait for green, then hit it. Best: <b id="reflex-best">none yet</b></p>
+        </div>
+
+        <div class="game" data-gamebox="ball" hidden>
+          <div id="ball">8</div>
+          <form id="ball-form" class="row" autocomplete="off">
+            <input id="ball-input" type="text" maxlength="100" placeholder="Ask a yes or no question...">
+            <button class="big" type="submit">Ask</button>
+          </form>
+          <p id="ball-answer" aria-live="polite"></p>
+        </div>
+
+        <div class="game" data-gamebox="quest" hidden>
+          <p id="grass-text" class="grass"></p>
+          <button id="grass-next" class="big">Give me another</button>
+          <button id="grass-done" class="chip">Did it (+5 aura)</button>
+        </div>
+      </section>
+
+      <section data-panel="vibes" hidden>
+        <h2>Vibes</h2>
+        <p class="sub">Made live in your browser. No downloads, no ads, no cap.</p>
+        <div class="row tabs" id="vibe-choices">
+          <button data-vibe="lofi" class="chip">🎹 Lo-fi chill</button>
+          <button data-vibe="rain" class="chip">🌧️ Rain</button>
+          <button data-vibe="brown" class="chip">🌊 Brown noise</button>
+          <button data-vibe="off" class="chip on">🔇 Off</button>
+        </div>
+        <label class="row">Volume <input id="vibe-vol" type="range" min="0" max="100" value="40"></label>
+      </section>
+
+      <section data-panel="settings" hidden>
+        <h2>Settings</h2>
+        <label class="row">Name <input id="set-name" type="text" maxlength="20" placeholder="What do people call you?"></label>
+        <label class="row"><input id="set-24h" type="checkbox"> 24 hour clock</label>
+        <label class="row"><input id="set-hydrate" type="checkbox"> Hourly hydration reminder</label>
+        <p class="sub">Boss key: press <kbd>B</kbd> on the new tab to instantly look busy.</p>
+        <div class="row"><button id="set-reset" class="ghost">Reset all my data</button></div>
+        <p id="set-msg" aria-live="polite"></p>
+      </section>
+    </div>
+  </div>
+
+  <div id="boss" hidden>
+    <div class="doc">
+      <div class="doc-bar" id="doc-title"></div>
+      <div class="doc-page" id="doc-body"></div>
+      <div class="doc-hint">Press B to come back to the fun.</div>
+    </div>
+  </div>
+
+  <div id="name-modal" hidden>
+    <form id="name-form" autocomplete="off">
+      <h2>Yo, who's this?</h2>
+      <p class="sub">What do people call you? Stays on your device.</p>
+      <input id="name-input" type="text" maxlength="20" placeholder="Your name or nickname" required>
+      <button class="big" type="submit">Let's go</button>
+    </form>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
