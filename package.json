@@ -1,0 +1,12 @@
+{
+  "name": "touch-grass-tab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Touch Grass Tab: a Momentum-style new tab Chrome extension with a Gen Z attitude.",
+  "scripts": {
+    "icons": "node scripts/make-icons.mjs",
+    "check": "node scripts/check.mjs",
+    "e2e": "node scripts/e2e.mjs"
+  }
+}

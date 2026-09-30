@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Touch Grass Tab",
+  "version": "1.0.0",
+  "description": "Your new tab, but it has rizz. Focus timer, side quests, mini games, chill sounds and memes. No cap.",
+  "permissions": ["storage", "alarms", "notifications"],
+  "chrome_url_overrides": { "newtab": "newtab.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Touch Grass Tab: open a new tab, bestie",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png" }
+  }
+}
